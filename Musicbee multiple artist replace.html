@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Musicbee multiple artist fix</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1>Musicbee multiple artist fix</h1>
+        <div class="form-group">
+            <label for="originalText">Enter string from musicbee:</label>
+            <textarea id="originalText" class="form-control" rows="10"></textarea>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <button id="analyzeButton" class="btn btn-primary btn-block">Analyze and Copy</button>
+            </div>
+            <div class="col-md-6">
+                <button id="quickPasteButton" class="btn btn-info btn-block">Quick Paste, Analyze and Copy</button>
+            </div>
+        </div>
+        <div id="cvDetect" class="mt-3"></div>
+        <div id="separateDetect" class="mt-3"></div>
+        <div id="bracketDetect" class="mt-3"></div>
+        <div id="result" class="mt-3"></div>
+    </div>
+
+    <!-- Include Bootstrap JS and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        document.getElementById("quickPasteButton").addEventListener("click", function () {
+            // Read content from clipboard
+            navigator.clipboard.readText().then(function (clipboardText) {
+                document.getElementById("originalText").value = clipboardText;
+
+                // Trigger analysis
+                analyzeAndCopy();
+            });
+        });
+
+        document.getElementById("analyzeButton").addEventListener("click", analyzeAndCopy);
+
+        function analyzeAndCopy() {
+            var resultDiv = document.getElementById("result");
+            var cvDetectDiv = document.getElementById("cvDetect");
+            var separateDetectDiv = document.getElementById("separateDetect");
+            var bracketDetectDiv = document.getElementById("bracketDetect");
+
+            var originalText = document.getElementById("originalText").value;
+
+            var cvFilter = ["CV", "Cv", "cv", "VA", "Va", "va", "VO", "Vo", "vo"];
+            var cvSeparateFilter = [": ", " :", ":", " .", ". ", "."];
+            var cvBracketFilter = ["( "];
+
+            var markText = ""
+            if (!originalText.includes("):")) {
+                markText = originalText.replaceAll(": Artist", "[sep_mark_ar] Artist").replaceAll(": Performer", "[sep_mark_pr] Performer");
+            }
+
+            if (originalText == "") {
+                var analyzeButton = document.getElementById("analyzeButton");
+                analyzeButton.innerText = "Input is empty";
+                analyzeButton.classList = "btn btn-danger btn-block";
+
+                // Revert back to "Analyze and Copy" after 1 second
+                setTimeout(function () {
+                    analyzeButton.innerText = "Analyze and Copy";
+                    analyzeButton.classList = "btn btn-primary btn-block";
+                }, 1000);
+
+                resultDiv.innerHTML = ""
+                cvDetectDiv.innerHTML = ""
+                separateDetectDiv.innerHTML = ""
+                bracketDetectDiv.innerHTML = ""
+            } else if (!markText.includes("[sep_mark_ar]") && !markText.includes("[sep_mark_pr]")) {
+                var analyzeButton = document.getElementById("analyzeButton");
+                analyzeButton.innerText = "Incorrect format";
+                analyzeButton.classList = "btn btn-danger btn-block";
+
+                // Revert back to "Analyze and Copy" after 1 second
+                setTimeout(function () {
+                    analyzeButton.innerText = "Analyze and Copy";
+                    analyzeButton.classList = "btn btn-primary btn-block";
+                }, 1000);
+
+                resultDiv.innerHTML = ""
+                cvDetectDiv.innerHTML = ""
+                separateDetectDiv.innerHTML = ""
+                bracketDetectDiv.innerHTML = ""
+            } else {
+                for (var i = 0; i < cvFilter.length; i++) {
+                    passCvFilter = markText.replaceAll(cvFilter[i], "CV");
+                    if (passCvFilter != markText) {
+                        cvDetect = cvFilter[i]
+                        break
+                    } else {
+                        cvDetect = ""
+                    }
+                }
+
+                for (var i = 0; i < cvSeparateFilter.length; i++) {
+                    passCvSeparateFilter = passCvFilter.replaceAll(cvSeparateFilter[i], ": ");
+                    if (passCvSeparateFilter != passCvFilter) {
+                        separateDetect = cvSeparateFilter[i]
+                        if (passCvSeparateFilter.includes("  ")) {
+                            passCvSeparateFilter = passCvSeparateFilter.replaceAll("  ", " ");
+                            separateDetect = ""
+                        }
+                        break
+                    } else {
+                        separateDetect = ""
+                    }
+                }
+
+                for (var i = 0; i < cvBracketFilter.length; i++) {
+                    passCvBracketFilter = passCvSeparateFilter.replaceAll(cvBracketFilter[i], "(");
+                    if (passCvBracketFilter != passCvSeparateFilter) {
+                        bracketDetect = cvBracketFilter[i]
+                        break
+                    } else {
+                        bracketDetect = ""
+                    }
+                }
+
+                if (cvDetect == "") {
+                    cvDetectDiv.innerHTML = "<hr><strong style=\"color: green;\">CV Undetected</strong>"
+                } else {
+                    cvDetectDiv.innerHTML = "<hr><strong style=\"color: red;\">CV Detected</strong> : \"" + cvDetect + '"'
+                }
+
+                if (separateDetect == "") {
+                    separateDetectDiv.innerHTML = "<strong style=\"color: green;\">Separater Undetected</strong>"
+                } else {
+                    separateDetectDiv.innerHTML = "<strong style=\"color: red;\">Separater Detected</strong> : \"" + separateDetect + '"'
+                }
+
+                if (bracketDetect == "") {
+                    bracketDetectDiv.innerHTML = "<strong style=\"color: green;\">Bracket Undetected</strong>"
+                } else {
+                    bracketDetectDiv.innerHTML = "<strong style=\"color: red;\">Bracket Detected</strong> : \"" + bracketDetect + '"'
+                }
+
+                var resultText = passCvBracketFilter.replaceAll("[sep_mark_ar] Artist", "): Artist").replaceAll("[sep_mark_pr] Performer", "): Performer");
+                resultDiv.innerHTML = "<hr><strong>Result:</strong><br><pre>" + resultText + "</pre>";
+                navigator.clipboard.writeText(resultText)
+
+                var analyzeButton = document.getElementById("analyzeButton");
+                analyzeButton.innerText = "Copied";
+                analyzeButton.classList = "btn btn-success btn-block";
+
+                // Revert back to "Analyze and Copy" after 1 second
+                setTimeout(function () {
+                    analyzeButton.innerText = "Analyze and Copy";
+                    analyzeButton.classList = "btn btn-primary btn-block";
+                }, 1000);
+
+                // var copiedText = document.createElement("div");
+                // copiedText.innerHTML = "<strong>Copied</strong>";
+                // copiedText.classList.add("text-center", "mt-3");
+                // document.body.appendChild(copiedText);
+                // setTimeout(function () {
+                //     document.body.removeChild(copiedText);
+                // }, 1500);
+            }
+        }
+    </script>
+</body>
+
+</html>
